@@ -1,0 +1,1 @@
+{"tasks":{"start":"deno run --allow-net --allow-env server.ts","check":"deno check server.ts","test":"deno test audit_test.ts"},"deploy":{"entrypoint":"server.ts"}}

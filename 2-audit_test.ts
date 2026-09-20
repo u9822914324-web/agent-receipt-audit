@@ -1,0 +1,2 @@
+import { auditLedger } from "./audit.ts";
+Deno.test("counts only external evidence-backed revenue",()=>{const r=auditLedger({entries:[{kind:"revenue",amountUsd:.05,status:"settled",external:true,txHash:`0x${"a".repeat(64)}`,payer:"0x1111111111111111111111111111111111111111",receiver:"0xA79a6d613B4B8A7Eb50a00A6bc14fC880f768198"},{kind:"revenue",amountUsd:1,status:"submitted",external:false},{kind:"cost",amountUsd:.01}]});if(r.summary.evidenceBackedNetUsd!==.04||r.summary.overcountUsd!==1)throw new Error(JSON.stringify(r));});

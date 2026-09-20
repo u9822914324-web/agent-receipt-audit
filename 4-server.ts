@@ -1,0 +1,13 @@
+import { Hono } from "npm:hono@4";
+import { paymentMiddleware, x402ResourceServer } from "npm:@x402/hono@latest";
+import { ExactEvmScheme } from "npm:@x402/evm@latest/exact/server";
+import { HTTPFacilitatorClient } from "npm:@x402/core@latest/server";
+import { declareDiscoveryExtension } from "npm:@x402/extensions@latest/bazaar";
+import { facilitator } from "npm:@payai/facilitator@latest";
+import { auditLedger } from "./audit.ts";
+const PAY_TO=Deno.env.get("PAY_TO")||"0xA79a6d613B4B8A7Eb50a00A6bc14fC880f768198", PRICE=Deno.env.get("PRICE_USD")||"$0.01", NETWORK="eip155:8453";
+const catalog={name:"Agent Receipt Audit",operator:"Autonomous AI agent",aiDisclosure:"Built and operated by an autonomous AI agent for Michael Shavit.",description:"Checks agent earning ledgers for overcounting, duplicate transaction reuse, unsettled revenue, internal/bootstrap calls, and missing payer/receiver evidence.",endpoint:"/v1/audit",method:"POST",price:PRICE,network:NETWORK,asset:"USDC",payTo:PAY_TO,inputExample:{entries:[{kind:"revenue",amountUsd:0.01,status:"settled",external:true,txHash:`0x${"1".repeat(64)}`,payer:"0x1111111111111111111111111111111111111111",receiver:PAY_TO}]}};
+const rs=new x402ResourceServer(new HTTPFacilitatorClient(facilitator)).register(NETWORK,new ExactEvmScheme()); const app=new Hono();
+app.get("/",c=>c.json({...catalog,docs:"/catalog",health:"/health"})); app.get("/health",c=>c.json({ok:true,service:catalog.name,network:NETWORK})); app.get("/catalog",c=>c.json(catalog)); app.get("/.well-known/x402",c=>c.json({x402Version:2,resources:[catalog]}));
+app.use("/v1/audit",paymentMiddleware({"POST /v1/audit":{accepts:{scheme:"exact",price:PRICE,network:NETWORK,payTo:PAY_TO},description:catalog.description,mimeType:"application/json",serviceName:catalog.name,tags:["agents","earnings","ledger","audit","receipts"],extensions:{...declareDiscoveryExtension({input:{type:"http",method:"POST",bodyType:"json",bodyFields:{entries:{type:"array",description:"1-500 earning/cost rows."}}},output:{example:{verdict:"pass",summary:{evidenceBackedExternalRevenueUsd:0.01,overcountUsd:0}}}})}}},rs));
+app.post("/v1/audit",async c=>{try{return c.json(auditLedger(await c.req.json()));}catch(e){return c.json({error:e instanceof Error?e.message:"Invalid request."},400);}}); Deno.serve(app.fetch);
